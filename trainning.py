@@ -27,6 +27,8 @@ from data.words import Word
 from generator import Generator
 
 word = Word()
+
+
 # 单次训练
 def trainBatch(net, criterion, optimizer, cpu_images, cpu_texts, image, converter, text, length):
     batch_size = cpu_images.size(0)
@@ -97,10 +99,17 @@ def train(args):
     imgs_labels = glob(f'{args.image_dir}/*.jpg')
     with open(args.alphabetChinese, 'r') as f:
         alphabetChinese = ''.join(f.readlines())  # 获得编码表
-    trainP, testP = train_test_split(imgs_labels, test_size=0.1)  ##此处未考虑字符平衡划分
-    traindataset = PathDataset(trainP, alphabetChinese)
-    testdataset = PathDataset(testP, alphabetChinese)
     batchSize = args.batch_size
+    if args.image_dir == '':  # 如果没有提供图片路径
+        traindataset = Generator(word.get_all_words(), args.direction)
+        testdataset = Generator(word.get_all_words(), args.direction)
+        sampler = torch.utils.data.RandomSampler(traindataset)
+    else:
+        trainP, testP = train_test_split(imgs_labels, test_size=0.1)  ##此处未考虑字符平衡划分
+        traindataset = PathDataset(trainP, alphabetChinese)
+        testdataset = PathDataset(testP, alphabetChinese)
+        sampler = randomSequentialSampler(traindataset, batchSize)
+
     workers = args.workers
     imgH = args.imgH
     imgW = args.imgW
@@ -115,7 +124,7 @@ def train(args):
     image = torch.FloatTensor(batchSize, channel, imgH, imgW)
     text = torch.IntTensor(batchSize * 5)
     length = torch.IntTensor(batchSize)
-    sampler = randomSequentialSampler(traindataset, batchSize)
+    # sampler = randomSequentialSampler(traindataset, batchSize)
     epochs = args.epochs
     init_epoch = 0
     train_loader = torch.utils.data.DataLoader(
@@ -146,12 +155,10 @@ def train(args):
         train_iter = iter(train_loader)
         loss = 0
         acc = 0
-
         for j in range(n):
             model.train()
             cpu_images, cpu_texts = train_iter.next()
             cost = trainBatch(model, criterion, optimizer, cpu_images, cpu_texts, image, converter, text, length)
-
             loss += cost.data.cpu().numpy()
 
             if (j + 1) % interval == 0:
@@ -172,8 +179,10 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--device", type=str, default='cpu', help='cpu or cuda')
-    parser.add_argument("--image_dir", type=str, default='/Users/gongpengwang/Documents/advance/CRNN/images',
+    parser.add_argument("--device", type=str, default='cuda', help='cpu or cuda')
+    # parser.add_argument("--image_dir", type=str, default='E:/datasets/crnn/images',
+    #                     help='the images dir')
+    parser.add_argument("--image_dir", type=str, default='',
                         help='the images dir')
     parser.add_argument("--direction", type=str, choices=['horizontal', 'vertical'], default='horizontal',
                         help='horizontal or vertical')

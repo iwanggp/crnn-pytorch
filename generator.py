@@ -172,35 +172,42 @@ class Generator(Dataset):
         draw = ImageDraw.Draw(im)
         color = tuple(random_color(105, 255))
         text = self.draw_text(draw, text, font, color, char_w, char_h)
-        target_len = len(text)
+        # target_len = len(text)
         # 对应的类别
         indices = np.array([self.alpha.index(c) for c in text])
         # 转为灰度图
         image = np.array(im)
+        # image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         # 亮度反转
         if random.random() > 0.5:
             image = 255 - image
-        return image, indices, target_len, text
+        # return image, indices, target_len, text
+        image = Image.fromarray(image)
+        return image, text
 
     def __getitem__(self, item):
-        image, indices, target_len, text = self.gen_image()
-        if self.direction == "horizontal":
-            image = np.transpose(image[:, :, np.newaxis], axes=(2, 1, 0))
-        else:
-            image = np.transpose(image[:, :, np.newaxis], axes=(2, 0, 1))
+        # image, indices, target_len, text = self.gen_image()
+        image, text = self.gen_image()
+        image = image.convert('L')
+        # image = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
+        # if self.direction == "horizontal":
+        #     image = np.transpose(image[:, :, np.newaxis], axes=(2, 1, 0))
+        # else:
+        #     image = np.transpose(image[:, :, np.newaxis], axes=(2, 0, 1))
         # 标准化
-        image = image.astype(np.float32) / 255
-        image -= 0.5
-        image /= 0.5
+        # image = image.astype(np.float32) / 255
+        # image -= 0.5
+        # image /= 0.5
 
-        target = np.zeros(shape=(self.max_len,), dtype=np.long)
-        target[:target_len] = indices
+        # target = np.zeros(shape=(self.max_len,), dtype=np.long)
+        # target[:target_len] = indices
         if self.direction == 'horizontal':
             input_len = self.im_w // 4 - 3
         else:
             input_len = self.im_w // 16 - 1
-        return image, target, input_len, target_len
+            # return image, target, input_len, target_len
+        return (image, text)
 
     def __len__(self):
         return len(self.alpha) * 100
@@ -209,10 +216,12 @@ class Generator(Dataset):
 def lll_image_gen(direction='horizontal'):
     gen = Generator(word.get_all_words()[:], direction=direction)
     for i in range(100):
-        im, indices, target_len, text = gen.gen_image()
-        cv2.imwrite("./images/{}-{:03d}.jpg".format(text, i + 1), im)
-
-        print(''.join([gen.alpha[j] for j in indices]))
+        (im, text) = gen.gen_image()
+        # im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        # cv2.imwrite("./images/{}-{:03d}.jpg".format(text, i + 1), im)
+        # im.save("./images/{}-{:03d}.jpg".format(text, i + 1), im)
+        im.save("./images/{}-{:03d}.jpg".format(text, i + 1))
+        print(text)
 
 
 if __name__ == '__main__':
